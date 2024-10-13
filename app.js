@@ -8,49 +8,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let sessions = [];
 
-    // Populate session time select with only available future times until 6am
     function populateSessionTime() {
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinutes = now.getMinutes();
-
+        const sessionTimeSelect = newSessionTimeSelect;
+    
         // Clear previous options
-        newSessionTimeSelect.innerHTML = '';
-
-        // Set the starting hour
-        let startHour = currentHour;
-        let startMinute = currentMinutes >= 30 ? 30 : 0;
-
-        // If it's 30 minutes past the hour, move to the next hour
-        if (currentMinutes >= 30) {
-            startHour += 1;
-            startMinute = 0;
+        sessionTimeSelect.innerHTML = '';
+    
+        // Populate available hours for today and tomorrow
+        for (let hour = currentHour; hour < 24; hour++) {
+            if (hour === currentHour && currentMinutes >= 30) {
+                continue; // Skip the current hour if minutes are past 30
+            }
+            
+            // Add full hour option
+            if (!(hour === currentHour && currentMinutes >= 0 && currentMinutes < 30)) {
+                const option1 = document.createElement('option');
+                option1.value = `${hour}:00`;
+                option1.innerText = `${hour}:00`;
+                sessionTimeSelect.appendChild(option1);
+            }
+    
+            // Add half-hour option
+            if (!(hour === currentHour && currentMinutes >= 30)) {
+                const option2 = document.createElement('option');
+                option2.value = `${hour}:30`;
+                option2.innerText = `${hour}:30`;
+                sessionTimeSelect.appendChild(option2);
+            }
         }
-
-        // Fill the select with available times until 6am
-        for (let hour = startHour; hour < 6; hour++) {
+    
+        // Add options for tomorrow
+        for (let hour = 0; hour < 6; hour++) {
             const option1 = document.createElement('option');
-            option1.value = `${hour}:00`;
-            option1.innerText = `${hour}:00`;
-            newSessionTimeSelect.appendChild(option1);
-
+            option1.value = `Demain ${hour}:00`;
+            option1.innerText = `Demain ${hour}:00`;
+            sessionTimeSelect.appendChild(option1);
+    
             const option2 = document.createElement('option');
-            option2.value = `${hour}:30`;
-            option2.innerText = `${hour}:30`;
-            newSessionTimeSelect.appendChild(option2);
+            option2.value = `Demain ${hour}:30`;
+            option2.innerText = `Demain ${hour}:30`;
+            sessionTimeSelect.appendChild(option2);
         }
-
-        // Add the 6:00 AM option
-        const option6am = document.createElement('option');
-        option6am.value = '6:00';
-        option6am.innerText = '6:00';
-        newSessionTimeSelect.appendChild(option6am);
-        
+    
         // Set default value to the next available time
-        if (startHour < 6) {
-            newSessionTimeSelect.value = `${startHour}:${startMinute}`;
+        if (currentHour < 6) {
+            sessionTimeSelect.value = '0:00'; // Première heure disponible
+        } else if (currentHour >= 6 && currentMinutes >= 30) {
+            sessionTimeSelect.value = `${currentHour + 1}:00`; // Prochaine heure pleine
         } else {
-            newSessionTimeSelect.value = '6:00'; // if the current time is 6 or later
+            sessionTimeSelect.value = `${currentHour}:${currentMinutes >= 30 ? '00' : '30'}`; // Prochaine heure
         }
     }
 
@@ -130,9 +139,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (now < sessionStartTime.getTime()) {
                 const timeUntilStart = Math.ceil((sessionStartTime.getTime() - now) / 1000 / 60); // Convertir en minutes
                 
-                // Vérifiez si le temps jusqu'à l'ouverture est inférieur ou égal à 10 minutes
+                // Vérifiez si le temps jusqu'à l'ouverture est inférieur ou égal à 30 minutes
                 if (timeUntilStart <= 30) {
                     countdownElement.innerHTML = `<span style="color: green;">Ouvre dans ${timeUntilStart}m</span>`;
+                } else {
+                    countdownElement.innerHTML = ''; // Clear countdown if more than 30 minutes to start
                 }
             } else {
                 const remainingTime = session.expiration - now;
@@ -141,12 +152,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     removeSession(session.id);
                 } else {
                     const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
-                    countdownElement.innerHTML = `<span style="color: red;">Supprimé dans ${minutes}m</span>`;
+                    
+                    // N'afficher que si la suppression est dans 30 minutes ou moins
+                    if (minutes <= 30) {
+                        countdownElement.innerHTML = `<span style="color: red;">Supprimé dans ${minutes}m</span>`;
+                    } else {
+                        countdownElement.innerHTML = ''; // Ne rien afficher si le temps restant est supérieur à 30 minutes
+                    }
                 }
             }
         }, 1000);
-    }    
-
+    }  
+    
     // Remove session
     function removeSession(sessionId) {
         sessions = sessions.filter(session => session.id !== sessionId);
